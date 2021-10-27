@@ -1,0 +1,6 @@
+"0","# binding"
+"0","data2003 = read.csv(""https://www3.nd.edu/~sberry5/data/c2003_a.csv"")"
+"0",""
+"0","data2004 = read.csv(""https://www3.nd.edu/~sberry5/data/c2004_a.csv"")"
+"0",""
+"0","complete = rbind(data2003, data2004)"

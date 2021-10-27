@@ -1,0 +1,4 @@
+"0",""
+"0","# get all rows and these named columns"
+"0","keepers = c(""mpg"", ""cyl"", ""disp"", ""hp"", ""drat"", ""qsec"", ""vs"")"
+"0","mtcars[, keepers]"

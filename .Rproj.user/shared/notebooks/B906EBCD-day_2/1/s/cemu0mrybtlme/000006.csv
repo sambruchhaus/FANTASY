@@ -1,0 +1,5 @@
+"0","longDat = data.frame(id = rep(1:3, times = 2), "
+"0","                     variable = rep(c(""age"", ""employeeType""), each = 3), "
+"0","                     value = c(33, 35, 37, "
+"0","                               ""full"", ""full"", ""part""))"
+"0","longDat"

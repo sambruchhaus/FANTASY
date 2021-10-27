@@ -1,0 +1,2 @@
+"0","# get columns by index"
+"0","mtcars[, c(1:5, 7:8)]"

@@ -1,0 +1,2 @@
+"0","# summarize only certain stuff"
+"0","mtcars %>% summarize_at(vars(starts_with(""c"")), lst(mean, sd), na.rm = TRUE)"

@@ -1,0 +1,50 @@
+"0","# load in traditional box score data"
+"0","box_score_stats_19_20 <- teams_players_stats(seasons = 2020,"
+"0","                                            types = c(""player""),"
+"0","                                            tables = c(""general""),"
+"0","                                            season_types = ""Regular Season"","
+"0","                                            measures = ""Base"","
+"0","                                            modes = ""Totals"","
+"0","                                            assign_to_environment =  FALSE,"
+"0","                                            add_mode_names = FALSE,"
+"0","                                            return_message = FALSE)$dataTable[[1]] %>%"
+"0","                                            select(# IDs"
+"0","                                                   namePlayer, idPlayer, slugTeam, idTeam, gp, "
+"0","                                                   # Game Score Variables"
+"0","                                                   pts, "
+"0","                                                   fgm, "
+"0","                                                   fga, "
+"0","                                                   ftm, "
+"0","                                                   fta, "
+"0","                                                   oreb, "
+"0","                                                   dreb,"
+"0","                                                   stl, "
+"0","                                                   ast, "
+"0","                                                   blk,"
+"0","                                                   pf,"
+"0","                                                   tov)"
+"1",""
+"2","Warning:"
+"2"," All elements of `...` must be named.
+Did you want `dataTable = c(typeMeasure, isPlusMinus, isPaceAdjust, isRank, idPlayoffRound, 
+    idMonth, idTeamOpponent, idPeriod, countLastNGames, namePlayer, 
+    nameTeam, slugTeam, idPlayer, idTeam, gp, pctWins, fgm, fga, 
+    pctFG, fg3m, fg3a, pctFG3, pctFT, gpRank, pctWinsRank, minutesRank, 
+    fgmRank, fgaRank, pctFGRank, fg3mRank, fg3aRank, pctFG3Rank, 
+    pctFTRank, fg2m, fg2a, pctFG2, agePlayer, wins, losses, minutes, 
+    ftm, fta, oreb, dreb, treb, ast, tov, stl, blk, blka, pf, 
+    pfd, pts, plusminus, fptsNBAActual, dd2, td3, winsRank, lossesRank, 
+    rankFTM, rankFTA, orebRank, drebRank, trebRank, astRank, 
+    tovRank, stlRank, blkRank, blkaRank, pfRank, pfdRank, ptsRank, 
+    plusminusRank, fptsRank, dd2Rank, td3Rank)`?
+"
+"0","box_score_stats_19_20 <- box_score_stats_19_20 %>% mutate(gmsc = apply(box_score_stats_19_20 %>% "
+"0","                                                                       select(6:17),"
+"0","                                                                       1,"
+"0","                                                                       calc_gmsc),"
+"0","                                                          fpts = apply(box_score_stats_19_20 %>% "
+"0","                                                                       select(6:17),"
+"0","                                                                       1,"
+"0","                                                                       calc_fpts))"
+"0",""
+"0","save(box_score_stats_19_20, file=""box_score_stats_19_20.rda"")"

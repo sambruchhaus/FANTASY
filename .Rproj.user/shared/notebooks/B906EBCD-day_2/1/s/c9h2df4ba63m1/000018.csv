@@ -1,0 +1,5 @@
+"0",""
+"0","# group by"
+"0","mtcars %>% group_by(am) %>% "
+"0","           summarize(meanMPG = mean(mpg), "
+"0","                     sdMPG = sd(mpg))"

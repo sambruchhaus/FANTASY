@@ -1,0 +1,6 @@
+"0","box_score_stats_19_21 <- merge(box_score_stats_19_20, "
+"0","                               box_score_stats_20_21, "
+"0","                               by=c(""idPlayer"", ""namePlayer""), "
+"0","                               suffixes=c(""_20"", ""_21""))"
+"0",""
+"0","save(box_score_stats_19_21, file=""box_score_stats_19_21.rda"")"

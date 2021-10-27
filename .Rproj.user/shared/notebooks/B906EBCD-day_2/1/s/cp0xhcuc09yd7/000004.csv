@@ -1,0 +1,11 @@
+"0","starwars %>% "
+"0","  filter(species == ""Human"" & grepl(""(Skywalker)|(Rey)|(Vader)|(Kylo)"", .$name)) %>% "
+"0","  select(name, height, mass) %>% "
+"0","  tidyr::pivot_longer(., names_to=""type"", values_to=""value"", -name) %>% "
+"0","  ggplot(., aes(x = name, y = value, color = type)) + "
+"0","  geom_point(size = 3.5) +"
+"0","  scale_color_brewer(palette = ""Dark2"") +"
+"0","  theme_minimal()"
+"2","Warning:"
+"2"," Removed 3 rows containing missing values (geom_point).
+"

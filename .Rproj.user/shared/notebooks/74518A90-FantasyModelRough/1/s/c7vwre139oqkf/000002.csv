@@ -1,0 +1,103 @@
+"0","# develop coefficients for game score"
+"0","gmsc_coeffs = c(PTS = 1,"
+"0","                FG = 0.4,"
+"0","                FGA = -0.7,"
+"0","                FT = 0.4,"
+"0","                FTA = -0.4,"
+"0","                ORB = 0.7,"
+"0","                DRB = 0.3,"
+"0","                STL = 1,"
+"0","                AST = 0.7,"
+"0","                BLK = 0.7,"
+"0","                PF = -0.4,"
+"0","                TOV = -1)"
+"0",""
+"0","# load in traditional box score data"
+"0","box_score_stats_20_21 <- teams_players_stats(seasons = 2021,"
+"0","                                            types = c(""player""),"
+"0","                                            tables = c(""general""),"
+"0","                                            season_types = ""Regular Season"","
+"0","                                            measures = ""Base"","
+"0","                                            modes = ""Totals"","
+"0","                                            assign_to_environment =  FALSE,"
+"0","                                            add_mode_names = FALSE,"
+"0","                                            return_message = FALSE)$dataTable[[1]] %>%"
+"0","                                            select(# IDs"
+"0","                                                   namePlayer, idPlayer, slugTeam, idTeam, gp, "
+"0","                                                   # Game Score Variables"
+"0","                                                   pts, "
+"0","                                                   fgm, "
+"0","                                                   fga, "
+"0","                                                   ftm, "
+"0","                                                   fta, "
+"0","                                                   oreb, "
+"0","                                                   dreb,"
+"0","                                                   stl, "
+"0","                                                   ast, "
+"0","                                                   blk,"
+"0","                                                   pf,"
+"0","                                                   tov)"
+"2","
+Attaching package: ‘purrr’
+
+"
+"2","The following objects are masked from ‘package:radiant.data’:
+
+    is_double, is_empty, is_numeric
+
+"
+"2","The following object is masked from ‘package:magrittr’:
+
+    set_names
+
+"
+"1",""
+"2","Warning:"
+"2"," `funs()` was deprecated in dplyr 0.8.0.
+Please use a list of either functions or lambdas: 
+
+  # Simple named list: 
+  list(mean = mean, median = median)
+
+  # Auto named with `tibble::lst()`: 
+  tibble::lst(mean, median)
+
+  # Using lambdas
+  list(~ mean(., trim = .2), ~ median(., na.rm = TRUE))
+[90mThis warning is displayed once every 8 hours.[39m
+[90mCall `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.[39m
+"
+"2","Warning:"
+"2"," All elements of `...` must be named.
+Did you want `dataTable = c(typeMeasure, isPlusMinus, isPaceAdjust, isRank, idPlayoffRound, 
+    idMonth, idTeamOpponent, idPeriod, countLastNGames, namePlayer, 
+    nameTeam, slugTeam, idPlayer, idTeam, gp, pctWins, fgm, fga, 
+    pctFG, fg3m, fg3a, pctFG3, pctFT, gpRank, pctWinsRank, minutesRank, 
+    fgmRank, fgaRank, pctFGRank, fg3mRank, fg3aRank, pctFG3Rank, 
+    pctFTRank, fg2m, fg2a, pctFG2, agePlayer, wins, losses, minutes, 
+    ftm, fta, oreb, dreb, treb, ast, tov, stl, blk, blka, pf, 
+    pfd, pts, plusminus, fptsNBAActual, dd2, td3, winsRank, lossesRank, 
+    rankFTM, rankFTA, orebRank, drebRank, trebRank, astRank, 
+    tovRank, stlRank, blkRank, blkaRank, pfRank, pfdRank, ptsRank, 
+    plusminusRank, fptsRank, dd2Rank, td3Rank)`?
+"
+"0","# compute game score for the season"
+"0","calc_gmsc <- function(row){"
+"0","  row %*% gmsc_coeffs "
+"0","}"
+"0",""
+"0","calc_fpts <- function(row){"
+"0","  # divided by games per week"
+"0","  row %*% (round(gmsc_coeffs/(82/25),2))"
+"0","}"
+"0",""
+"0","box_score_stats_20_21 <- box_score_stats_20_21 %>% mutate(gmsc = apply(box_score_stats_20_21 %>% "
+"0","                                                                       select(6:17),"
+"0","                                                                       1,"
+"0","                                                                       calc_gmsc),"
+"0","                                                          fpts = apply(box_score_stats_20_21 %>% "
+"0","                                                                       select(6:17),"
+"0","                                                                       1,"
+"0","                                                                       calc_fpts))"
+"0",""
+"0","save(box_score_stats_20_21, file=""box_score_stats_20_21.rda"")"

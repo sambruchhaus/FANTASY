@@ -1,0 +1,4 @@
+"0",""
+"0","# drop whole columns"
+"0","dropVars = c(""vs"", ""drat"")"
+"0","mtcars[, !(names(mtcars) %in% dropVars)]"

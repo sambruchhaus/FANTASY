@@ -1,0 +1,12 @@
+"0","as.data.frame(starwars) %>% "
+"0","  filter(species == ""Human"" & grepl(""(Skywalker)|(Rey)|(Vader)|(Kylo)"", .$name)) %>% "
+"0","  select(name, height, mass) %>% "
+"0","  reshape(., idvar = ""name"", v.names = ""values"", varying = list(2:3), "
+"0","          times = c(""height"", ""mass""), direction = ""long"") %>% "
+"0","  ggplot(., aes(x = name, y = values, color = time)) + "
+"0","  geom_point(size = 3.5) +"
+"0","  scale_color_brewer(palette = ""Dark2"") +"
+"0","  theme_minimal()"
+"2","Warning:"
+"2"," Removed 3 rows containing missing values (geom_point).
+"

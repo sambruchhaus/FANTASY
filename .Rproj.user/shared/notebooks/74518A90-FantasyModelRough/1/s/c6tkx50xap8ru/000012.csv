@@ -1,0 +1,4 @@
+"0","pred_stats_22 <- mutate_ext(pred_stats_22, .vars = vars(gp), .funs = square, .ext = ""_sq"")"
+"0","pred_22 <- as.vector(predict.gam(model_20, newdata=pred_stats_22))"
+"0","pred_stats_22_w_pred <- pred_stats_22 %>% mutate(pred_gmsc_22 = pred_22)"
+"0","pred_stats_22_w_pred %>% select(namePlayer, pred_gmsc_22) %>% arrange(desc(pred_gmsc_22))"

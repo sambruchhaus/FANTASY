@@ -1,0 +1,3 @@
+"0","pred_stats_22_w_pred %>% transmute(namePlayer, gmsc_21, pred_gmsc_22, pctDIFF=(pred_gmsc_22 - gmsc_21) / gmsc_21) %>%"
+"0","                         filter(pred_gmsc_22 >= 600) %>%"
+"0","                         arrange(desc(pctDIFF))"

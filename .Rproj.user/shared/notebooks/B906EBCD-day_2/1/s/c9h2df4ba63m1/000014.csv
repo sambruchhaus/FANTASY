@@ -1,0 +1,13 @@
+"0",""
+"0","# summarize all"
+"0","mtcars %>% summarize_all(lst(mean, sd), na.rm = TRUE)"
+"2","Warning in mean.default(vs, na.rm = TRUE) :"
+"2","
+ "
+"2"," argument is not numeric or logical: returning NA
+"
+"2","Warning in var(if (is.vector(x) || is.factor(x)) x else as.double(x), na.rm = na.rm) :"
+"2","
+ "
+"2"," NAs introduced by coercion
+"

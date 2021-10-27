@@ -1,0 +1,6 @@
+"0","starwarsLong = starwars %>% "
+"0","  filter(species == ""Human"" & grepl(""(Skywalker)|(Rey)|(Vader)|(Kylo)"", .$name)) %>% "
+"0","  select(name, height, mass) %>% "
+"0","  tidyr::pivot_longer(., names_to=""type"", values_to=""value"", -name)"
+"0",""
+"0","starwarsLong"

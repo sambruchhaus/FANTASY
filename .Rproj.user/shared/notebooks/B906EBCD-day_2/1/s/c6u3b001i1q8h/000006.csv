@@ -1,0 +1,4 @@
+"0","# Just to give you an idea about how it works!"
+"0","data.frame(x = rnorm(10), y = rnorm(10)) %>% "
+"0","  cor() %>% "
+"0","  corrplot::corrplot()"

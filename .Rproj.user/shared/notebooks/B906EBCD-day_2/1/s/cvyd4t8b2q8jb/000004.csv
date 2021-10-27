@@ -1,0 +1,6 @@
+"0","# board = haven::read_sas()"
+"0","# "
+"0","# organization = haven::read_sas()"
+"0","# "
+"0","# mergedDat = merge(x = board, y = organization, by = """", "
+"0","#       all.x = TRUE, all.y = FALSE)"

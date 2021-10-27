@@ -1,0 +1,131 @@
+"0","library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(nbastatR)"
+"0","library(radiant)"
+"2","Loading required package: radiant.data
+"
+"2","Loading required package: magrittr
+"
+"2","Loading required package: ggplot2
+"
+"2","Loading required package: lubridate
+"
+"2","
+Attaching package: ‘lubridate’
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+"
+"2","Loading required package: tidyr
+"
+"2","
+Attaching package: ‘tidyr’
+
+"
+"2","The following object is masked from ‘package:magrittr’:
+
+    extract
+
+"
+"2","Registered S3 methods overwritten by 'htmltools':
+  method               from         
+  print.html           tools:rstudio
+  print.shiny.tag      tools:rstudio
+  print.shiny.tag.list tools:rstudio
+"
+"2","Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+"
+"2","Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"2","
+Attaching package: ‘radiant.data’
+
+"
+"2","The following objects are masked from ‘package:lubridate’:
+
+    month, wday
+
+"
+"2","The following object is masked from ‘package:ggplot2’:
+
+    diamonds
+
+"
+"2","The following object is masked from ‘package:magrittr’:
+
+    set_attr
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    date
+
+"
+"2","Loading required package: radiant.design
+"
+"2","Loading required package: mvtnorm
+"
+"2","Loading required package: radiant.basics
+"
+"2","Loading required package: radiant.model
+"
+"2","Loading required package: radiant.multivariate
+"
+"0","library(mgcv)"
+"2","Loading required package: nlme
+"
+"2","
+Attaching package: ‘nlme’
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+"
+"2","This is mgcv 1.8-36. For overview type 'help(""mgcv-package"")'.
+"
+"2","
+Attaching package: ‘mgcv’
+
+"
+"2","The following objects are masked from ‘package:radiant.model’:
+
+    nb, rig
+
+"
+"0","library(httr)"
+"0","library(ROI)"
+"2","Registered S3 methods overwritten by 'registry':
+  method               from 
+  print.registry_field proxy
+  print.registry_entry proxy
+"
+"2","ROI: R Optimization Infrastructure
+"
+"2","Registered solver plugins: nlminb, glpk.
+"
+"2","Default solver: auto.
+"
+"0","library(ROI.plugin.glpk)"
+"0","Sys.setenv(""VROOM_CONNECTION_SIZE"" = 131072 * 2)"

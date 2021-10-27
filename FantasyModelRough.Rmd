@@ -1,0 +1,475 @@
+---
+title: "Fantasy Basketball Model"
+author: "Samuel"
+date: "10/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warnings = FALSE, messages = FALSE, errors = FALSE, comment='')
+```
+
+## Fantasy Projection
+
+Import necessary libraries
+```{r, message = FALSE, warning = FALSE}
+library(dplyr)
+library(nbastatR)
+library(radiant)
+library(mgcv)
+library(httr)
+library(ROI)
+library(ROI.plugin.glpk)
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 2)
+```
+### Clean Data
+
+#### Game Score for 2020-21
+```{r, message = FALSE}
+# develop coefficients for game score
+gmsc_coeffs = c(PTS = 1,
+                FG = 0.4,
+                FGA = -0.7,
+                FT = 0.4,
+                FTA = -0.4,
+                ORB = 0.7,
+                DRB = 0.3,
+                STL = 1,
+                AST = 0.7,
+                BLK = 0.7,
+                PF = -0.4,
+                TOV = -1)
+
+# load in traditional box score data
+box_score_stats_20_21 <- teams_players_stats(seasons = 2021,
+                                            types = c("player"),
+                                            tables = c("general"),
+                                            season_types = "Regular Season",
+                                            measures = "Base",
+                                            modes = "Totals",
+                                            assign_to_environment =  FALSE,
+                                            add_mode_names = FALSE,
+                                            return_message = FALSE)$dataTable[[1]] %>%
+                                            select(# IDs
+                                                   namePlayer, idPlayer, slugTeam, idTeam, gp, 
+                                                   # Game Score Variables
+                                                   pts, 
+                                                   fgm, 
+                                                   fga, 
+                                                   ftm, 
+                                                   fta, 
+                                                   oreb, 
+                                                   dreb,
+                                                   stl, 
+                                                   ast, 
+                                                   blk,
+                                                   pf,
+                                                   tov)
+
+# compute game score for the season
+calc_gmsc <- function(row){
+  row %*% gmsc_coeffs 
+}
+
+calc_fpts <- function(row){
+  # divided by games per week
+  row %*% (round(gmsc_coeffs/(82/25),2))
+}
+
+box_score_stats_20_21 <- box_score_stats_20_21 %>% mutate(gmsc = apply(box_score_stats_20_21 %>% 
+                                                                       select(6:17),
+                                                                       1,
+                                                                       calc_gmsc),
+                                                          fpts = apply(box_score_stats_20_21 %>% 
+                                                                       select(6:17),
+                                                                       1,
+                                                                       calc_fpts))
+
+save(box_score_stats_20_21, file="box_score_stats_20_21.rda")
+```
+
+#### Game Score for 2019-2020
+```{r}
+# load in traditional box score data
+box_score_stats_19_20 <- teams_players_stats(seasons = 2020,
+                                            types = c("player"),
+                                            tables = c("general"),
+                                            season_types = "Regular Season",
+                                            measures = "Base",
+                                            modes = "Totals",
+                                            assign_to_environment =  FALSE,
+                                            add_mode_names = FALSE,
+                                            return_message = FALSE)$dataTable[[1]] %>%
+                                            select(# IDs
+                                                   namePlayer, idPlayer, slugTeam, idTeam, gp, 
+                                                   # Game Score Variables
+                                                   pts, 
+                                                   fgm, 
+                                                   fga, 
+                                                   ftm, 
+                                                   fta, 
+                                                   oreb, 
+                                                   dreb,
+                                                   stl, 
+                                                   ast, 
+                                                   blk,
+                                                   pf,
+                                                   tov)
+
+box_score_stats_19_20 <- box_score_stats_19_20 %>% mutate(gmsc = apply(box_score_stats_19_20 %>% 
+                                                                       select(6:17),
+                                                                       1,
+                                                                       calc_gmsc),
+                                                          fpts = apply(box_score_stats_19_20 %>% 
+                                                                       select(6:17),
+                                                                       1,
+                                                                       calc_fpts))
+
+save(box_score_stats_19_20, file="box_score_stats_19_20.rda")
+```
+
+#### Merge Two Datasets together 
+
+```{r}
+box_score_stats_19_21 <- merge(box_score_stats_19_20, 
+                               box_score_stats_20_21, 
+                               by=c("idPlayer", "namePlayer"), 
+                               suffixes=c("_20", "_21"))
+
+save(box_score_stats_19_21, file="box_score_stats_19_21.rda")
+```
+
+### Model Approach: Use My Personal Approach to Looking at Players
+
+Statistics Needed: 
+
+* NBA.com Traditional Per Game: Age, GP, MPG, TRB, AST, STL, BLK, TOV, PF, PTS
+
+* NBA.com Advanced: OR, DR, TS%, OREB%, DREB%, USG% 
+
+* NBA.com Defense, BLK%, STL%
+
+* BBREF: OBPM, DBPM, BPM
+
+* RAPTOR
+
+Workflow
+
+STATS FROM PREVIOUS YEAR --Predict--> GAME SCORE FOR NEXT YEAR
+
+#### Stats from Above
+
+```{r, warning=FALSE, message=FALSE}
+# Traditional Per Game: GP, MPG, TRB, AST, STL, BLK, TOV, PF, PTS
+traditional_stats_19_20 <- teams_players_stats(seasons=2020,
+                                               types="player",
+                                               tables="general",
+                                               season_types="Regular Season",
+                                               measures="Base",
+                                               modes="PerGame",
+                                               assign_to_environment = FALSE,
+                                               add_mode_names = FALSE,
+                                               return_message = FALSE)$dataTable[[1]] %>% 
+                                               select(namePlayer, idPlayer, agePlayer, gp, mpg=minutes, 
+                                                      rpg=treb, apg=ast, spg=stl, 
+                                                      bpg=blk, tpg=tov, fpg=pf, ppg=pts)
+
+# Advanced: OR, DR, TS%, OREB%, DREB%, USG%, AST/TO, PIE
+advanced_stats_19_20 <- teams_players_stats(seasons=2020,
+                                            types="player",
+                                            tables="general",
+                                            season_types="Regular Season",
+                                            measures="Advanced",
+                                            assign_to_environment = FALSE,
+                                            add_mode_names = FALSE,
+                                            return_message = FALSE)$dataTable[[1]] %>% 
+                                            select(namePlayer, idPlayer, ortg, drtg, 
+                                                   pctTS, pctOREB, pctDREB, pctUSG, 
+                                                   ratioASTtoTO, ratioPIE)
+# NBA.com Defense, BLK%, STL%
+defense_stats_19_20 <- teams_players_stats(seasons=2020,
+                                           types="player",
+                                           tables="general",
+                                           season_types="Regular Season",
+                                           measures="Defense",
+                                           assign_to_environment = FALSE,
+                                           add_mode_names = FALSE,
+                                           return_message = FALSE)$dataTable[[1]] %>% 
+                                           select(namePlayer, idPlayer,
+                                                  pctBLK=pctBLKOfTeam, pctSTL=pctSTLOfTeam)
+
+# BBREF: OBPM, DBPM, BPM
+bbref_stats_19_20 <- bref_players_stats(seasons = 2020,
+                                        tables = "advanced",
+                                        assign_to_environment = FALSE,
+                                        return_message = FALSE) %>% 
+                                        select(namePlayer, idPlayer=idPlayerNBA, idPlayerBREF=slugPlayerBREF,
+                                               ratioOBPM, ratioDBPM, ratioBPM) %>%
+                                        arrange(namePlayer)
+
+bbref_stats_19_20[35, 1:2] <- list("B.J. Johnson", 1629168)
+bbref_stats_19_20[66, 1:2] <- list("Charlie Brown Jr.", 1629718)
+bbref_stats_19_20[365, 1:2] <- list("Melvin Frazier Jr.", 1628982)
+bbref_stats_19_20[369, 1:2] <- list("Michael Frazier II", 1626187)
+bbref_stats_19_20[483, 1:2] <- list("T.J. Leaf", 1628388)
+bbref_stats_19_20[526, 1:2] <- list("Zach Norvell", 1629668)
+
+
+# RAPTOR
+raptor_link_19_20 <- "https://raw.githubusercontent.com/fivethirtyeight/data/master/nba-raptor/historical_RAPTOR_by_player.csv"
+raptor_19_20 <- rio::import(raptor_link_19_20) %>%
+                filter(season == 2020) %>%
+                select(namePlayer=player_name, idPlayerBREF=player_id, 
+                       ratioWAR=war_reg_season, ratioPREDATOR=predator_total) %>%
+                left_join(x=.,
+                          y=select(bbref_stats_19_20, idPlayerBREF, idPlayer),
+                          by="idPlayerBREF") %>%
+                drop_na() %>%
+                select(namePlayer, idPlayer, ratioWAR, ratioPREDATOR)
+
+# Merge
+model_train_stats <- traditional_stats_19_20 %>% inner_join(y=advanced_stats_19_20 %>% select(-namePlayer)) %>%
+                                                inner_join(y=defense_stats_19_20 %>% select(-namePlayer)) %>%
+                                                inner_join(y=bbref_stats_19_20 %>% select(-namePlayer, -idPlayerBREF)) %>%
+                                                inner_join(y=raptor_19_20 %>% select(-namePlayer)) %>%
+                                                inner_join(y=box_score_stats_19_20 %>% select(idPlayer, gmsc_20=gmsc)) %>%
+                                                inner_join(y=box_score_stats_20_21 %>% select(idPlayer, gmsc_21=gmsc))
+
+save(model_train_stats, file="model_test_stats.rda")
+```
+
+#### Train Model
+```{r}
+model_20 <- gam(gmsc_21 ~ s(agePlayer) + 
+                            s(gp) + s(ppg) + s(rpg) + s(bpg) + s(tpg) + s(ratioWAR),
+                data=model_train_stats,
+                gamma=1.2)
+summary(model_20)
+concurvity(model_20)
+```
+
+#### Predict 2022 Statistics
+
+##### Get Data for 2021
+```{r, warning=FALSE, message=FALSE}
+# Traditional Per Game: GP, MPG, TRB, AST, STL, BLK, TOV, PF, PTS
+traditional_stats_20_21 <- teams_players_stats(seasons=2021,
+                                               types="player",
+                                               tables="general",
+                                               season_types="Regular Season",
+                                               measures="Base",
+                                               modes="PerGame",
+                                               assign_to_environment = FALSE,
+                                               add_mode_names = FALSE,
+                                               return_message = FALSE)$dataTable[[1]] %>% 
+                                               select(namePlayer, idPlayer, agePlayer, gp, mpg=minutes, 
+                                                      rpg=treb, apg=ast, spg=stl, 
+                                                      bpg=blk, tpg=tov, fpg=pf, ppg=pts)
+
+# Advanced: OR, DR, TS%, OREB%, DREB%, USG%, AST/TO, PIE
+advanced_stats_20_21 <- teams_players_stats(seasons=2021,
+                                            types="player",
+                                            tables="general",
+                                            season_types="Regular Season",
+                                            measures="Advanced",
+                                            assign_to_environment = FALSE,
+                                            add_mode_names = FALSE,
+                                            return_message = FALSE)$dataTable[[1]] %>% 
+                                            select(namePlayer, idPlayer, ortg, drtg, 
+                                                   pctTS, pctOREB, pctDREB, pctUSG, 
+                                                   ratioASTtoTO, ratioPIE)
+
+# NBA.com Defense, BLK%, STL%
+defense_stats_20_21 <- teams_players_stats(seasons=2021,
+                                           types="player",
+                                           tables="general",
+                                           season_types="Regular Season",
+                                           measures="Defense",
+                                           assign_to_environment = FALSE,
+                                           add_mode_names = FALSE,
+                                           return_message = FALSE)$dataTable[[1]] %>% 
+                                           select(namePlayer, idPlayer,
+                                                  pctBLK=pctBLKOfTeam, pctSTL=pctSTLOfTeam)
+
+# BBREF: OBPM, DBPM, BPM
+bbref_stats_20_21 <- bref_players_stats(seasons = 2021,
+                                        tables = "advanced",
+                                        assign_to_environment = FALSE,
+                                        return_message = FALSE) %>% 
+                                        select(namePlayer, idPlayer=idPlayerNBA, idPlayerBREF=slugPlayerBREF,
+                                               ratioOBPM, ratioDBPM, ratioBPM) %>%
+                                        arrange(namePlayer)
+
+bbref_stats_20_21[71, 1:2] <- list("Charlie Brown Jr.", 1629718)
+bbref_stats_20_21[170, 1:2] <- list("Frank Mason", 1628412)
+bbref_stats_20_21[305, 1:2] <- list("KJ Martin", 1630231)
+bbref_stats_20_21[442, 1:2] <- list("Robert Woodard II", 1630218)
+bbref_stats_20_21[495, 1:2] <- list("T.J. Leaf", 1628388)
+
+# RAPTOR
+raptor_link_20_21 <- "https://projects.fivethirtyeight.com/nba-model/2021/latest_RAPTOR_by_player.csv"
+raptor_20_21 <- rio::import(raptor_link_20_21) %>%
+                filter(season == 2021) %>%
+                select(namePlayer=player_name, idPlayerBREF=player_id, 
+                       ratioWAR=war_reg_season, ratioPREDATOR=predator_total) %>%
+                left_join(x=.,
+                          y=select(bbref_stats_20_21, idPlayerBREF, idPlayer),
+                          by="idPlayerBREF") %>%
+                drop_na() %>%
+                select(namePlayer, idPlayer, ratioWAR, ratioPREDATOR)
+
+# Merge
+pred_stats_22 <- traditional_stats_20_21 %>% inner_join(y=advanced_stats_20_21 %>% select(-namePlayer)) %>%
+                                             inner_join(y=defense_stats_20_21 %>% select(-namePlayer)) %>%
+                                             inner_join(y=bbref_stats_20_21 %>% select(-namePlayer, -idPlayerBREF)) %>%
+                                             inner_join(y=raptor_20_21 %>% select(-namePlayer)) %>%
+                                             inner_join(y=box_score_stats_20_21 %>% select(idPlayer, gmsc_21=gmsc))
+
+save(pred_stats_22, file="pred_stats.rda")
+```
+##### Predict
+```{r}
+pred_stats_22 <- mutate_ext(pred_stats_22, .vars = vars(gp), .funs = square, .ext = "_sq")
+pred_22 <- as.vector(predict.gam(model_20, newdata=pred_stats_22))
+pred_stats_22_w_pred <- pred_stats_22 %>% mutate(pred_gmsc_22 = pred_22)
+pred_stats_22_w_pred %>% select(namePlayer, pred_gmsc_22) %>% arrange(desc(pred_gmsc_22))
+```
+
+#### Analyze Predicted Growth Value
+```{r}
+pred_stats_22_w_pred %>% transmute(namePlayer, gmsc_21, pred_gmsc_22, pctDIFF=(pred_gmsc_22 - gmsc_21) / gmsc_21) %>%
+                         filter(pred_gmsc_22 >= 600) %>%
+                         arrange(desc(pctDIFF))
+```
+
+### Optimize Draftees via my Predictions
+
+#### Obtain Auction Information
+```{r}
+# from lineup experts
+list_experts <- list.files(path="AuctionProjections", pattern = "*.csv", full.names=TRUE) %>%
+                            rio::import_list(.)
+
+experts_values <- list_experts[[1]] %>% transmute(Player, 
+                                                   Value=readr::parse_number(Value)) %>% 
+                                         full_join(list_experts[[2]] %>% 
+                                                    transmute(Player, 
+                                                              Value=readr::parse_number(Value)), 
+                                                    by="Player", 
+                                                    suffix = c("_DYN", "_NON")) %>%
+                                         replace(is.na(.), 0) %>%
+                                         mutate(Positions=stringr::str_extract(Player, "(?<= - ).[^\\)]*"),
+                                                Player=stringr::str_extract(Player, ".*?(?=\\s{2})"),
+                                                isPG=as.integer(grepl("PG", Positions, fixed = TRUE)),
+                                                isSG_SF=as.integer(grepl("SG|SF", Positions)),
+                                                isPF_C=as.integer(grepl("PF|C", Positions))) %>%
+                                         arrange(Player)
+
+experts_values[52, 1] = "Jaren Jackson Jr."
+experts_values[71, 1] = "Kelly Oubre Jr."
+experts_values[89, 1] = "Marvin Bagley III"
+experts_values[90, 1] = "Michael Porter Jr."
+experts_values[104, 1] = "P.J. Washington"
+experts_values[108, 1] = "Robert Williams III"
+experts_values[120, 1] = "Tim Hardaway Jr."
+experts_values[125, 1] = "Wendell Carter Jr."
+
+# from espn
+get_espn <- GET("https://fantasy.espn.com/apis/v3/games/fba/seasons/2022/segments/0/leaguedefaults/1?view=kona_player_info", 
+                   add_headers("X-Fantasy-Filter" = 
+                               '{"players":{"filterSlotIds":{"value":[0,1,2,3,4,5,6,7,8,9,10,11]},"sortAdp":{"sortPriority":2,"sortAsc":true},"sortDraftRanks":{"sortPriority":100,"sortAsc":true,"value":"STANDARD"},"limit":150,"filterStatsForTopScoringPeriodIds":{"value":5,"additionalValue":["002022","102022","002021","012022","022022","032022","042022"]}}}'))
+
+content_espn <- jsonlite::fromJSON(content(get_espn, as = "text"))
+
+
+frame_espn <- data.frame(content_espn$players$player$firstName,
+                         content_espn$players$player$lastName,
+                         content_espn$players$player$ownership,
+                         content_espn$players$player$draftRanksByRankType)
+
+espn_values <- frame_espn %>% transmute(Player=paste0(content_espn.players.player.firstName, " ", content_espn.players.player.lastName),
+                                       Value_ESPN=ceiling(auctionValueAverage))
+
+auction_values <- espn_values %>% full_join(experts_values) %>%
+                                  replace(is.na(.), 0) %>%
+                                  mutate(Value_Mean=ceiling(rowMeans(.[,2:4]))) %>%
+                                  select(Player, Value_ESPN, Value_DYN, Value_NON, Value_Mean, isPG, isSG_SF, isPF_C)
+
+```
+
+#### Optimize
+```{r}
+opt_team_inputs <- pred_stats_22_w_pred %>% transmute(namePlayer, pred_gmsc_22) %>%
+                                            inner_join(auction_values %>% rename(Price = Value_NON),
+                                                       by = c("namePlayer" = "Player")) %>%
+                                            filter(.,!(namePlayer %in% list("Ben Simmons", 
+                                                                            "John Wall", 
+                                                                            "Kyrie Irving",
+                                                                            "Kawhi Leonard"
+                                                                            ))) %>%
+                                            arrange(desc(pred_gmsc_22))
+
+write.csv(opt_team_inputs, "cheat_sheet.csv")
+# You want your team to have as high of a point average as possible.
+obj_team <- as.vector(opt_team_inputs$pred_gmsc_22)
+
+# Rules:
+# 1. Must stay under the budget of 200
+# 2. Must have 10 guys
+# 3. Must Have 1 PG
+# 4. Must Have 2 SG/SF
+# 5. Must Have 2 PF/C
+
+r_team <- c(200,
+            10,
+            1,
+            2,
+            2,
+            3)
+
+l_team <- rbind(as.vector(opt_team_inputs$Price),
+                rep(1, 146),
+                as.vector(opt_team_inputs$isPG),
+                as.vector(opt_team_inputs$isSG_SF),
+                as.vector(opt_team_inputs$isPF_C),
+                c(1, rep(0,17), 1, rep(0, 24-19), 1, rep(0, 146-25)))
+
+constr_team <- L_constraint(L = l_team,
+                            dir = c(rep("==", 2), rep(">=", 3), "=="),
+                            rhs = r_team)
+
+pro_create_team <- OP(objective = obj_team,
+                           constraints = constr_team,
+                           maximum = TRUE,
+                           types = rep("B", 146)
+                          )
+
+solved_team <- ROI_solve(pro_create_team)
+
+opt_team_inputs$on_team <- solution(solved_team)
+
+opt_team <- opt_team_inputs %>% filter(on_team == 1) %>%
+                                select(namePlayer, Price, pred_gmsc_22)
+opt_team %>% arrange(desc(Price))
+opt_team %>% summarise(TotalPrice=sum(Price), TotalFtPts=sum(pred_gmsc_22))
+```
+
+```{r}
+
+```
+
+
+#### Yet To Do / Please Help Me
+
+- How to Evaluate the Model? Can it get better?
+- Transforming Variables due to weird distributions? How to know what transformation to use?
+- What should testing be like?
+- Should I include more years?
+- This is a keeper league...how to involve that while balancing winning this year.
+- Defense doesn't really show up other than in WAR...AFTER INSPECTION...sort of solved via DBPM?
+- "Looking for alpha" like in finance -- how to find value?
+- I feel like I need to get out of radiant...
+- Speaking of value, how to transfer into % of 200 dollar cap... 
+- Create live simulation that can optimize my expected added(?) total gmscr per dollar amount increase. 
+  Would this use T-dist?
+- How to scrape from https://fantasy.espn.com/basketball/livedraftresults?leagueId=1043248116

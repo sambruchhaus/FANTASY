@@ -1,0 +1,3 @@
+"0",""
+"0","# easily reorder columns w/ everything"
+"0","HolzingerSwineford1939 %>% select(id, starts_with(""x""), everything())"
